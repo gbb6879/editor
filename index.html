@@ -32,7 +32,7 @@
         
         #layout-container {
             position: absolute;
-            top: 0;
+            top: 46px;
             left: 0;
             right: 0;
             bottom: 0;
@@ -58,9 +58,15 @@
         }
         
         .toolbar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
             padding: 10px;
             background-color: #333;
             border-bottom: 1px solid #444;
+            z-index: 1000;
+            height: 25px;
         }
         
         .tool-btn {
@@ -238,6 +244,22 @@
         }
         .context-menu li:hover {
             background: #444;
+        }
+        
+        .tileset-toolbar {
+            padding: 5px;
+            border-bottom: 1px solid #444;
+        }
+        
+        .tileset-content {
+            padding: 10px;
+            overflow: auto;
+            height: calc(100% - 40px);
+        }
+        
+        .tileset-canvas {
+            border: 1px solid #555;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -445,17 +467,22 @@
                 
                 // Simple configuration for testing
                 var config = {
+                    settings: {
+                        showPopoutIcon: false,
+                        showMaximiseIcon: false,
+                        showCloseIcon: false
+                    },
                     content: [{
                         type: 'row',
                         content: [{
                             type: 'component',
                             componentName: 'mapEditor',
                             componentState: { label: 'Map Editor' },
-                            width: 60,
+                            width: 70,
                             title: 'Map Editor'
                         }, {
                             type: 'column',
-                            width: 40,
+                            width: 30,
                             content: [{
                                 type: 'component',
                                 componentName: 'tilesetPanel',
@@ -497,6 +524,7 @@
                 
                 // Register components
                 layout.registerComponent('mapEditor', function(container, state) {
+                    console.log('Registering mapEditor component');
                     var $mapEditor = $('<div class="map-editor"></div>');
                     var $canvasContainer = $('<div class="map-canvas-container"></div>');
                     
@@ -1191,20 +1219,21 @@
                 
                 layout.registerComponent('tilesetPanel', function(container, state) {
                     var $tilesetPanel = $('<div class="tileset-panel"></div>');
+                    var $toolbar = $('<div class="tileset-toolbar"></div>');
                     var $uploadBtn = $('<button class="tool-btn">Upload Tileset</button>');
-                    var $fileInput = $('<input type="file" accept="image/*" style="display: none;">');
-                    var $tilesetContent = $('<div class="tileset-content"></div>');
+                    var $content = $('<div class="tileset-content"></div>');
                     
-                    $tilesetPanel.append($uploadBtn).append($fileInput).append($tilesetContent);
+                    $toolbar.append($uploadBtn);
+                    $tilesetPanel.append($toolbar).append($content);
                     container.getElement().append($tilesetPanel);
                     
                     // Handle tileset upload button click
                     $uploadBtn.on('click', function() {
-                        $fileInput.click();
+                        $('#tilesetUpload').click();
                     });
                     
                     // Handle tileset image upload
-                    $fileInput.on('change', function(e) {
+                    $('#tilesetUpload').on('change', function(e) {
                         var file = e.target.files[0];
                         if (!file) return;
                         
@@ -1239,7 +1268,7 @@
                                 ctx.drawImage(img, 0, 0);
                                 
                                 $tileset.append($canvas);
-                                $tilesetContent.append($tileset);
+                                $content.append($tileset);
                                 
                                 // Draw grid over the tileset
                                 drawTilesetGrid($canvas[0], tileSize);
@@ -1259,7 +1288,7 @@
                     });
                     
                     // Handle selecting tiles from the tileset
-                    $tilesetContent.on('click', '.tileset-canvas', function(e) {
+                    $content.on('click', '.tileset-canvas', function(e) {
                         var $canvas = $(this);
                         var tilesetId = $canvas.parent().data('id');
                         
@@ -1279,10 +1308,6 @@
                         console.log('Selected tile:', selectedTile);
                         
                         // Update selection visuals
-                        $('.tileset-canvas').removeClass('has-selection');
-                        $canvas.addClass('has-selection');
-                        
-                        // Highlight the selected tile
                         $('.tileset-canvas').each(function() {
                             var ctx = this.getContext('2d');
                             ctx.clearRect(0, 0, this.width, this.height);
@@ -1932,6 +1957,11 @@
                 }
             </style>`;
             $('head').append(menuCSS);
+        }
+        
+        // Add a file input for tileset uploads
+        if ($('#tilesetUpload').length === 0) {
+            $('body').append('<input type="file" id="tilesetUpload" style="display: none;" accept="image/*">');
         }
     </script>
 </body>
