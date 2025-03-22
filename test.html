@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoldenLayout Test</title>
+    <!-- jQuery 3.3.1 is known to work well with GoldenLayout 1.5.9 -->
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    
+    <!-- GoldenLayout -->
+    <script src="https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/dist/goldenlayout.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/src/css/goldenlayout-base.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/src/css/goldenlayout-dark-theme.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #2c2c2c;
+            color: #f0f0f0;
+        }
+        
+        #layout-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="layout-container"></div>
+    
+    <script>
+        // Simple test of GoldenLayout
+        $(document).ready(function() {
+            try {
+                console.log("Initializing test GoldenLayout...");
+                
+                // Configuration
+                var config = {
+                    content: [{
+                        type: 'row',
+                        content: [{
+                            type: 'component',
+                            componentName: 'test',
+                            title: 'Test Component',
+                            componentState: { label: 'A' }
+                        }]
+                    }]
+                };
+                
+                // Create the layout
+                var myLayout = new GoldenLayout(config, $('#layout-container'));
+                
+                // Register component
+                myLayout.registerComponent('test', function(container, state) {
+                    container.getElement().html('<div style="padding: 20px;">Hello from GoldenLayout!</div>');
+                });
+                
+                // Initialize
+                myLayout.init();
+                
+                // Handle resize
+                $(window).resize(function() {
+                    myLayout.updateSize();
+                });
+                
+                console.log("GoldenLayout initialized successfully!");
+            } catch (error) {
+                console.error("Error initializing test GoldenLayout:", error);
+            }
+        });
+    </script>
+</body>
+</html>

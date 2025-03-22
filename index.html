@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Editor 3000</title>
+    
+    <!-- jQuery (specific versions known to work with GoldenLayout) -->
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    
+    <!-- GoldenLayout -->
+    <script src="https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/dist/goldenlayout.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/src/css/goldenlayout-base.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/src/css/goldenlayout-dark-theme.css">
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <style>
+        .context-menu {
+            display: none;
+            position: absolute;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            min-width: 150px;
+        }
+        
+        .context-menu ul {
+            list-style: none;
+            margin: 0;
+            padding: 4px 0;
+        }
+        
+        .context-menu li {
+            padding: 8px 12px;
+            cursor: pointer;
+            color: #fff;
+        }
+        
+        .context-menu li:hover {
+            background: #444;
+        }
+        
+        .selection-active .cursor-layer {
+            cursor: move;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div class="tool-group">
+            <button id="selectTool" class="tool-btn" title="Selection Tool"><i class="fas fa-mouse-pointer"></i></button>
+            <button id="pencilTool" class="tool-btn active" title="Pencil Tool"><i class="fas fa-pencil-alt"></i></button>
+            <button id="fillTool" class="tool-btn" title="Fill Tool"><i class="fas fa-fill-drip"></i></button>
+            <button id="shapeTool" class="tool-btn" title="Shape Tool"><i class="fas fa-square"></i></button>
+        </div>
+        <div class="tool-group">
+            <button id="undoBtn" class="tool-btn" title="Undo"><i class="fas fa-undo"></i></button>
+            <button id="redoBtn" class="tool-btn" title="Redo"><i class="fas fa-redo"></i></button>
+        </div>
+        <div class="tool-group">
+            <div class="input-group">
+                <label for="tileSize">Tile Size (px):</label>
+                <input type="number" id="tileSize" value="32" min="8" max="128">
+            </div>
+            <div class="input-group">
+                <label for="mapWidth">Map Width:</label>
+                <input type="number" id="mapWidth" value="20" min="1" max="1000">
+            </div>
+            <div class="input-group">
+                <label for="mapHeight">Map Height:</label>
+                <input type="number" id="mapHeight" value="15" min="1" max="1000">
+            </div>
+            <button id="applyMapSize" class="tool-btn">Apply</button>
+        </div>
+        <div class="tool-group">
+            <div class="layer-selector">
+                <label for="layerSelect">Layer:</label>
+                <select id="layerSelect">
+                    <option value="ground">Ground</option>
+                    <option value="objects">Objects</option>
+                    <option value="overlay">Overlay</option>
+                </select>
+            </div>
+            <button id="addLayer" class="tool-btn" title="Add Layer"><i class="fas fa-plus"></i></button>
+        </div>
+        <div class="tool-group">
+            <button id="exportBtn" class="tool-btn" title="Export Map"><i class="fas fa-download"></i></button>
+            <button id="importBtn" class="tool-btn" title="Import Map"><i class="fas fa-upload"></i></button>
+        </div>
+    </div>
+
+    <div id="layout-container"></div>
+
+    <input type="file" id="tilesetUpload" accept="image/*" style="display: none;">
+    
+    <!-- Selection context menu - moved outside map-editor div -->
+    <div id="selection-menu" class="context-menu">
+        <ul>
+            <li data-action="flip-h">Flip Horizontal</li>
+            <li data-action="flip-v">Flip Vertical</li>
+            <li data-action="copy">Copy</li>
+            <li data-action="cut">Cut</li>
+            <li data-action="paste">Paste</li>
+            <li data-action="delete">Delete</li>
+        </ul>
+    </div>
+    
+    <!-- Debug script to check for errors -->
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('Error: ', message, ' at ', source, ':', lineno, ':', colno, error);
+            return false;
+        };
+        
+        console.log('Page loaded, checking dependencies...');
+        console.log('jQuery loaded:', typeof $ !== 'undefined', 'version:', $.fn.jquery);
+        console.log('GoldenLayout loaded:', typeof GoldenLayout !== 'undefined');
+    </script>
+    
+    <!-- Basic app script -->
+    <script>
+        // Global variables for selection operations
+        var selectionStart = null;
+        var selectionEnd = null;
+        var clipboard = null;
+        var mapData = {};
+        var currentLayer = 'ground';
+        var tileSize = 32;
+        var canvases = {};
+        
+        $(document).ready(function() {
+            try {
+                console.log("Initializing Map Editor 3000...");
+                
+                // Application variables
+                tileSize = 32;
+                var mapWidth = 20;
+                var mapHeight = 15;
+                currentLayer = 'ground';
+                var zoom = 1;
+                var tilesets = [];
+                var selectedTile = null;
+                var activeTool = 'pencilTool';
+                var isDrawing = false;
+                selectionStart = null;
+                selectionEnd = null;
+                var lastDrawnX = -1;
+                var lastDrawnY = -1;
+                clipboard = null;
+                var isMovingSelection = false;
+                var moveStartX = -1;
+                var moveStartY = -1;
+                
+                // Simple configuration for testing
+                var config = {
+                    content: [{
+                        type: 'row',
+                        content: [{
+                            type: 'component',
+                            componentName: 'mapEditor',
+                            componentState: { label: 'Map Editor' },
+                            width: 60,
+                            title: 'Map Editor'
+                        }, {
+                            type: 'column',
+                            width: 40,
+                            content: [{
+                                type: 'component',
+                                componentName: 'tilesetPanel',
+                                componentState: { label: 'Tileset' },
+                                height: 70,
+                                title: 'Tileset'
+                            }, {
+                                type: 'component',
+                                componentName: 'layersPanel',
+                                componentState: { label: 'Layers' },
+                                height: 30,
+                                title: 'Layers'
+                            }]
+                        }]
+                    }]
+                };
+                
+                // Initialize the map data
+                mapData = {
+                    ground: createEmptyLayer(),
+                    objects: createEmptyLayer(),
+                    overlay: createEmptyLayer()
+                };
+                
+                // Helper function to create an empty layer
+                function createEmptyLayer() {
+                    var layer = [];
+                    for (var y = 0; y < mapHeight; y++) {
+                        layer[y] = [];
+                        for (var x = 0; x < mapWidth; x++) {
+                            layer[y][x] = null;
+                        }
+                    }
+                    return layer;
+                }
+                
+                // Initialize GoldenLayout
+                var layout = new GoldenLayout(config, $('#layout-container'));
+                
+                // Register components
+                layout.registerComponent('mapEditor', function(container, state) {
+                    var $mapEditor = $('<div class="map-editor"></div>');
+                    var $canvasContainer = $('<div class="map-canvas-container"></div>');
+                    
+                    // Create canvas layers (ground, objects, overlay, grid)
+                    var layers = ['ground', 'objects', 'overlay', 'grid', 'cursor'];
+                    canvases = {};
+                    
+                    layers.forEach(function(layer) {
+                        var $canvas = $('<canvas class="map-canvas ' + layer + '-layer"></canvas>');
+                        canvases[layer] = $canvas[0];
+                        $canvasContainer.append($canvas);
+                    });
+                    
+                    // Add zoom controls
+                    var $zoomControls = $('<div class="zoom-controls"></div>');
+                    $zoomControls.append('<button class="zoom-btn zoom-in" title="Zoom In"><i class="fas fa-plus"></i></button>');
+                    $zoomControls.append('<div class="zoom-level">100%</div>');
+                    $zoomControls.append('<button class="zoom-btn zoom-out" title="Zoom Out"><i class="fas fa-minus"></i></button>');
+                    
+                    $mapEditor.append($canvasContainer, $zoomControls);
+                    container.getElement().append($mapEditor);
+                    
+                    // Initialize the canvases with proper dimensions
+                    function initializeCanvases() {
+                        var totalWidth = mapWidth * tileSize;
+                        var totalHeight = mapHeight * tileSize;
+                        
+                        Object.keys(canvases).forEach(function(layerName) {
+                            var canvas = canvases[layerName];
+                            canvas.width = totalWidth;
+                            canvas.height = totalHeight;
+                            canvas.style.width = (totalWidth * zoom) + 'px';
+                            canvas.style.height = (totalHeight * zoom) + 'px';
+                        });
+                        
+                        // Draw the grid immediately
+                        drawGrid();
+                        
+                        // Draw initial map state
+                        drawAllLayers();
+                        
+                        // Apply the zoom
+                        $canvasContainer.css('transform', 'scale(' + zoom + ')');
+                    }
+                    
+                    // Draw grid on the grid canvas
+                    function drawGrid() {
+                        var ctx = canvases.grid.getContext('2d');
+                        ctx.clearRect(0, 0, canvases.grid.width, canvases.grid.height);
+                        
+                        ctx.beginPath();
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                        ctx.lineWidth = 1;
+                        
+                        // Draw vertical lines
+                        for (var x = 0; x <= mapWidth; x++) {
+                            ctx.moveTo(x * tileSize, 0);
+                            ctx.lineTo(x * tileSize, mapHeight * tileSize);
+                        }
+                        
+                        // Draw horizontal lines
+                        for (var y = 0; y <= mapHeight; y++) {
+                            ctx.moveTo(0, y * tileSize);
+                            ctx.lineTo(mapWidth * tileSize, y * tileSize);
+                        }
+                        
+                        ctx.stroke();
+                    }
+                    
+                    // Draw all map layers
+                    function drawAllLayers() {
+                        Object.keys(mapData).forEach(function(layerName) {
+                            drawLayer(layerName);
+                        });
+                    }
+                    
+                    // Draw a specific layer
+                    function drawLayer(layerName) {
+                        if (!canvases[layerName]) return;
+                        
+                        var ctx = canvases[layerName].getContext('2d');
+                        ctx.clearRect(0, 0, canvases[layerName].width, canvases[layerName].height);
+                        
+                        // Draw tiles on this layer
+                        var layer = mapData[layerName];
+                        for (var y = 0; y < layer.length; y++) {
+                            for (var x = 0; x < layer[y].length; x++) {
+                                var tile = layer[y][x];
+                                if (tile) {
+                                    drawTile(ctx, tile, x, y);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Draw a single tile at x,y position
+                    function drawTile(ctx, tile, x, y) {
+                        // Make sure we have a valid tile with an image
+                        if (!tile || !tile.img || !(tile.img instanceof HTMLImageElement)) {
+                            console.warn('Invalid tile data for drawing at', x, y);
+                            return;
+                        }
+
+                        var img = tile.img;
+                        var sx = tile.sx;
+                        var sy = tile.sy;
+                        
+                        try {
+                            ctx.drawImage(
+                                img,
+                                sx, sy, tileSize, tileSize,
+                                x * tileSize, y * tileSize, tileSize, tileSize
+                            );
+                        } catch (error) {
+                            console.error('Error drawing tile:', error);
+                            // Draw a placeholder for failed tile
+                            ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                            ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                        }
+                    }
+                    
+                    // Update the cursor display
+                    function updateCursor(x, y) {
+                        var ctx = canvases.cursor.getContext('2d');
+                        ctx.clearRect(0, 0, canvases.cursor.width, canvases.cursor.height);
+                        
+                        if (x >= 0 && y >= 0 && x < mapWidth && y < mapHeight) {
+                            if (activeTool === 'pencilTool' || activeTool === 'fillTool') {
+                                // Show simple cursor for drawing tools
+                                ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+                                ctx.lineWidth = 2;
+                                ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                                
+                                // Show tile preview if a tile is selected
+                                if (selectedTile) {
+                                    ctx.globalAlpha = 0.6;
+                                    drawTile(ctx, selectedTile, x, y);
+                                    ctx.globalAlpha = 1.0;
+                                }
+                            } else if (activeTool === 'selectTool') {
+                                // Update selection area visuals
+                                updateSelectionArea();
+                            } else if (activeTool === 'shapeTool') {
+                                // Update shape preview
+                                updateShapePreview();
+                            }
+                        }
+                    }
+                    
+                    // Update selection area visuals
+                    function updateSelectionArea() {
+                        var ctx = canvases.cursor.getContext('2d');
+                        ctx.clearRect(0, 0, canvases.cursor.width, canvases.cursor.height);
+                        
+                        if (selectionStart && selectionEnd) {
+                            var startX = Math.min(selectionStart.x, selectionEnd.x);
+                            var startY = Math.min(selectionStart.y, selectionEnd.y);
+                            var width = Math.abs(selectionEnd.x - selectionStart.x) + 1;
+                            var height = Math.abs(selectionEnd.y - selectionStart.y) + 1;
+                            
+                            ctx.strokeStyle = 'rgba(0, 100, 255, 0.8)';
+                            ctx.lineWidth = 2;
+                            ctx.setLineDash([5, 5]);
+                            ctx.strokeRect(
+                                startX * tileSize, 
+                                startY * tileSize, 
+                                width * tileSize, 
+                                height * tileSize
+                            );
+                            ctx.setLineDash([]);
+                            
+                            // Add some transparency to selection
+                            ctx.fillStyle = 'rgba(0, 100, 255, 0.2)';
+                            ctx.fillRect(
+                                startX * tileSize, 
+                                startY * tileSize, 
+                                width * tileSize, 
+                                height * tileSize
+                            );
+                            
+                            // Add handles for corners
+                            var handleSize = 8;
+                            ctx.fillStyle = 'rgba(0, 100, 255, 0.8)';
+                            
+                            // Top-left
+                            ctx.fillRect(
+                                startX * tileSize - handleSize/2, 
+                                startY * tileSize - handleSize/2, 
+                                handleSize, handleSize
+                            );
+                            
+                            // Top-right
+                            ctx.fillRect(
+                                (startX + width) * tileSize - handleSize/2, 
+                                startY * tileSize - handleSize/2, 
+                                handleSize, handleSize
+                            );
+                            
+                            // Bottom-left
+                            ctx.fillRect(
+                                startX * tileSize - handleSize/2, 
+                                (startY + height) * tileSize - handleSize/2, 
+                                handleSize, handleSize
+                            );
+                            
+                            // Bottom-right
+                            ctx.fillRect(
+                                (startX + width) * tileSize - handleSize/2, 
+                                (startY + height) * tileSize - handleSize/2, 
+                                handleSize, handleSize
+                            );
+                            
+                            // Add "move" cursor class for the selection
+                            $canvasContainer.addClass('selection-active');
+                        } else {
+                            $canvasContainer.removeClass('selection-active');
+                        }
+                    }
+                    
+                    // Update shape preview
+                    function updateShapePreview() {
+                        var ctx = canvases.cursor.getContext('2d');
+                        ctx.clearRect(0, 0, canvases.cursor.width, canvases.cursor.height);
+                        
+                        if (selectionStart && selectionEnd) {
+                            var startX = Math.min(selectionStart.x, selectionEnd.x);
+                            var startY = Math.min(selectionStart.y, selectionEnd.y);
+                            var endX = Math.max(selectionStart.x, selectionEnd.x);
+                            var endY = Math.max(selectionStart.y, selectionEnd.y);
+                            
+                            // Draw preview of the rectangle
+                            ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+                            ctx.lineWidth = 2;
+                            ctx.strokeRect(
+                                startX * tileSize, 
+                                startY * tileSize, 
+                                (endX - startX + 1) * tileSize, 
+                                (endY - startY + 1) * tileSize
+                            );
+                            
+                            // Show tile preview for each position in the rectangle
+                            if (selectedTile) {
+                                ctx.globalAlpha = 0.4;
+                                for (var y = startY; y <= endY; y++) {
+                                    for (var x = startX; x <= endX; x++) {
+                                        drawTile(ctx, selectedTile, x, y);
+                                    }
+                                }
+                                ctx.globalAlpha = 1.0;
+                            }
+                        }
+                    }
+                    
+                    // Mouse interaction with the map
+                    $canvasContainer.on('mousedown', function(e) {
+                        if (e.button === 0) { // Left click
+                            isDrawing = true;
+                            var coords = getTileCoordinates(e);
+                            var x = coords.x;
+                            var y = coords.y;
+                            
+                            if (x >= 0 && y >= 0 && x < mapWidth && y < mapHeight) {
+                                if (activeTool === 'pencilTool' && selectedTile) {
+                                    // Simple placement with pencil
+                                    placeTile(x, y);
+                                    lastDrawnX = x;
+                                    lastDrawnY = y;
+                                } else if (activeTool === 'fillTool' && selectedTile) {
+                                    // Fill connected area with the same tile
+                                    floodFill(x, y);
+                                } else if (activeTool === 'selectTool') {
+                                    // Check if click is inside an existing selection
+                                    if (selectionStart && selectionEnd) {
+                                        var selStartX = Math.min(selectionStart.x, selectionEnd.x);
+                                        var selStartY = Math.min(selectionStart.y, selectionEnd.y);
+                                        var selWidth = Math.abs(selectionEnd.x - selectionStart.x) + 1;
+                                        var selHeight = Math.abs(selectionEnd.y - selectionStart.y) + 1;
+                                        
+                                        if (x >= selStartX && x < selStartX + selWidth &&
+                                            y >= selStartY && y < selStartY + selHeight) {
+                                            // Click is inside selection - start moving
+                                            isMovingSelection = true;
+                                            moveStartX = x;
+                                            moveStartY = y;
+                                            return;
+                                        }
+                                    }
+                                    
+                                    // Start new selection
+                                    selectionStart = { x: x, y: y };
+                                    selectionEnd = { x: x, y: y };
+                                    updateSelectionArea();
+                                    
+                                    // Hide context menu if it's open
+                                    $('#selection-menu').hide();
+                                } else if (activeTool === 'shapeTool' && selectedTile) {
+                                    // Start shape drawing
+                                    selectionStart = { x: x, y: y };
+                                    selectionEnd = { x: x, y: y };
+                                }
+                            }
+                        } else if (e.button === 2) { // Right click
+                            var coords = getTileCoordinates(e);
+                            var x = coords.x;
+                            var y = coords.y;
+                            
+                            // If in selection tool and clicking within selection, show menu
+                            if (activeTool === 'selectTool' && selectionStart && selectionEnd) {
+                                var selStartX = Math.min(selectionStart.x, selectionEnd.x);
+                                var selStartY = Math.min(selectionStart.y, selectionEnd.y);
+                                var selWidth = Math.abs(selectionEnd.x - selectionStart.x) + 1;
+                                var selHeight = Math.abs(selectionEnd.y - selectionStart.y) + 1;
+                                
+                                if (x >= selStartX && x < selStartX + selWidth &&
+                                    y >= selStartY && y < selStartY + selHeight) {
+                                    
+                                    // Show context menu at mouse position
+                                    var menu = $('#selection-menu');
+                                    menu.css({
+                                        top: e.pageY + 'px',
+                                        left: e.pageX + 'px',
+                                        display: 'block'
+                                    });
+                                    
+                                    e.preventDefault();
+                                    return;
+                                }
+                            }
+                            
+                            // Default right-click behavior (erase)
+                            eraseTile(coords.x, coords.y);
+                            isDrawing = true;
+                            lastDrawnX = coords.x;
+                            lastDrawnY = coords.y;
+                            e.preventDefault();
+                        }
+                    });
+                    
+                    $canvasContainer.on('mousemove', function(e) {
+                        var coords = getTileCoordinates(e);
+                        var x = coords.x;
+                        var y = coords.y;
+                        
+                        // Update cursor position regardless of drawing state
+                        if (!isMovingSelection) {
+                            updateCursor(x, y);
+                        }
+                        
+                        if (isDrawing && x >= 0 && y >= 0 && x < mapWidth && y < mapHeight) {
+                            if (activeTool === 'pencilTool' && selectedTile) {
+                                // Only draw if we've moved to a new tile to avoid redundant operations
+                                if (x !== lastDrawnX || y !== lastDrawnY) {
+                                    // Draw line from last position to current for smoother drawing
+                                    drawLine(lastDrawnX, lastDrawnY, x, y);
+                                    lastDrawnX = x;
+                                    lastDrawnY = y;
+                                }
+                            } else if (activeTool === 'selectTool' && isMovingSelection && selectionStart && selectionEnd) {
+                                // Move selection - calculate offset from original mouse position
+                                var dx = x - moveStartX;
+                                var dy = y - moveStartY;
+                                
+                                // Update cursor canvas to show moving preview
+                                var ctxCursor = canvases.cursor.getContext('2d');
+                                ctxCursor.clearRect(0, 0, canvases.cursor.width, canvases.cursor.height);
+                                
+                                // Get the original selection bounds before moving
+                                var originalBounds = getSelectionBounds();
+                                if (!originalBounds) return;
+                                
+                                // Draw original selection outline (dimmed)
+                                ctxCursor.strokeStyle = 'rgba(0, 100, 255, 0.4)';
+                                ctxCursor.setLineDash([5, 5]);
+                                ctxCursor.strokeRect(
+                                    originalBounds.startX * tileSize, 
+                                    originalBounds.startY * tileSize, 
+                                    originalBounds.width * tileSize, 
+                                    originalBounds.height * tileSize
+                                );
+                                
+                                // Draw the moved selection outline
+                                ctxCursor.strokeStyle = 'rgba(0, 100, 255, 0.8)';
+                                ctxCursor.strokeRect(
+                                    (originalBounds.startX + dx) * tileSize, 
+                                    (originalBounds.startY + dy) * tileSize, 
+                                    originalBounds.width * tileSize, 
+                                    originalBounds.height * tileSize
+                                );
+                                ctxCursor.setLineDash([]);
+                                
+                                // Show the tiles that would be moved
+                                ctxCursor.globalAlpha = 0.7;
+                                for (var sy = 0; sy < originalBounds.height; sy++) {
+                                    for (var sx = 0; sx < originalBounds.width; sx++) {
+                                        var sourceTile = mapData[currentLayer][originalBounds.startY + sy][originalBounds.startX + sx];
+                                        if (sourceTile) {
+                                            drawTile(ctxCursor, sourceTile, originalBounds.startX + sx + dx, originalBounds.startY + sy + dy);
+                                        }
+                                    }
+                                }
+                                ctxCursor.globalAlpha = 1.0;
+                            } else if ((activeTool === 'selectTool' && !isMovingSelection) || activeTool === 'shapeTool') {
+                                // Update selection or shape preview
+                                selectionEnd = { x: x, y: y };
+                                if (activeTool === 'selectTool') {
+                                    updateSelectionArea();
+                                } else {
+                                    updateShapePreview();
+                                }
+                            }
+                        }
+                    });
+                    
+                    $canvasContainer.on('mouseup', function(e) {
+                        if (isDrawing) {
+                            var coords = getTileCoordinates(e);
+                            var x = coords.x;
+                            var y = coords.y;
+                            
+                            if (activeTool === 'shapeTool' && selectedTile && 
+                                selectionStart && x >= 0 && y >= 0 && x < mapWidth && y < mapHeight) {
+                                // Complete shape drawing
+                                drawRectangle(selectionStart.x, selectionStart.y, x, y);
+                                selectionStart = null;
+                                selectionEnd = null;
+                            } else if (activeTool === 'selectTool' && isMovingSelection && 
+                                selectionStart && selectionEnd) {
+                                // Complete the move operation
+                                var dx = x - moveStartX;
+                                var dy = y - moveStartY;
+                                
+                                // Get original bounds
+                                var originalBounds = getSelectionBounds();
+                                
+                                // Only move if the displacement is not zero
+                                if ((dx !== 0 || dy !== 0) && originalBounds) {
+                                    // Create a new selection based on the move
+                                    var newStartX = originalBounds.startX + dx;
+                                    var newStartY = originalBounds.startY + dy;
+                                    var newEndX = newStartX + originalBounds.width - 1;
+                                    var newEndY = newStartY + originalBounds.height - 1;
+                                    
+                                    // Perform the actual move operation
+                                    moveSelection(dx, dy);
+                                    
+                                    // Update selection positions
+                                    selectionStart = { x: newStartX, y: newStartY };
+                                    selectionEnd = { x: newEndX, y: newEndY };
+                                }
+                                
+                                isMovingSelection = false;
+                                moveStartX = -1;
+                                moveStartY = -1;
+                                
+                                // Redraw the selection at its new position
+                                updateSelectionArea();
+                            }
+                            
+                            isDrawing = false;
+                            lastDrawnX = -1;
+                            lastDrawnY = -1;
+                        }
+                    });
+                    
+                    // Get tile coordinates from mouse event
+                    function getTileCoordinates(e) {
+                        var rect = canvases.grid.getBoundingClientRect();
+                        var scaleX = canvases.grid.width / rect.width;
+                        var scaleY = canvases.grid.height / rect.height;
+                        
+                        var x = Math.floor((e.clientX - rect.left) * scaleX / tileSize);
+                        var y = Math.floor((e.clientY - rect.top) * scaleY / tileSize);
+                        
+                        return { x: x, y: y };
+                    }
+                    
+                    // Ensure we stop drawing if mouse leaves the canvas
+                    $canvasContainer.on('mouseleave', function() {
+                        isDrawing = false;
+                        // Clear cursor canvas
+                        var ctx = canvases.cursor.getContext('2d');
+                        ctx.clearRect(0, 0, canvases.cursor.width, canvases.cursor.height);
+                        
+                        // If in the middle of shape drawing, complete it
+                        if ((activeTool === 'shapeTool') && selectionStart && selectionEnd) {
+                            drawRectangle(selectionStart.x, selectionStart.y, selectionEnd.x, selectionEnd.y);
+                            selectionStart = null;
+                            selectionEnd = null;
+                        }
+                    });
+                    
+                    // Prevent context menu on right-click
+                    $canvasContainer.on('contextmenu', function(e) {
+                        e.preventDefault();
+                    });
+                    
+                    // Draw a line between two points using Bresenham's algorithm
+                    function drawLine(x0, y0, x1, y1) {
+                        // Make sure starting point is valid
+                        if (x0 < 0 || y0 < 0) {
+                            x0 = x1;
+                            y0 = y1;
+                        }
+                        
+                        var dx = Math.abs(x1 - x0);
+                        var dy = Math.abs(y1 - y0);
+                        var sx = (x0 < x1) ? 1 : -1;
+                        var sy = (y0 < y1) ? 1 : -1;
+                        var err = dx - dy;
+                        
+                        while (true) {
+                            placeTile(x0, y0);
+                            
+                            if (x0 === x1 && y0 === y1) break;
+                            var e2 = 2 * err;
+                            if (e2 > -dy) {
+                                err -= dy;
+                                x0 += sx;
+                            }
+                            if (e2 < dx) {
+                                err += dx;
+                                y0 += sy;
+                            }
+                        }
+                    }
+                    
+                    // Draw a rectangle between two points
+                    function drawRectangle(x0, y0, x1, y1) {
+                        var startX = Math.min(x0, x1);
+                        var startY = Math.min(y0, y1);
+                        var endX = Math.max(x0, x1);
+                        var endY = Math.max(y0, y1);
+                        
+                        // Draw the rectangle
+                        for (var y = startY; y <= endY; y++) {
+                            for (var x = startX; x <= endX; x++) {
+                                placeTile(x, y);
+                            }
+                        }
+                    }
+                    
+                    // Flood fill algorithm (4-way)
+                    function floodFill(x, y) {
+                        if (x < 0 || y < 0 || x >= mapWidth || y >= mapHeight) return;
+                        
+                        var targetTile = mapData[currentLayer][y][x];
+                        var targetValue = null;
+                        
+                        // Get target value as JSON string for comparison
+                        if (targetTile) {
+                            // We can't compare objects directly, so let's just use the coordinates
+                            targetValue = targetTile.sx + ',' + targetTile.sy;
+                        }
+                        
+                        // Don't fill if target is already the fill tile
+                        if (selectedTile && targetValue === (selectedTile.sx + ',' + selectedTile.sy)) {
+                            return;
+                        }
+                        
+                        var queue = [];
+                        queue.push({x: x, y: y});
+                        
+                        while (queue.length > 0) {
+                            var n = queue.pop();
+                            var nx = n.x;
+                            var ny = n.y;
+                            
+                            if (nx < 0 || ny < 0 || nx >= mapWidth || ny >= mapHeight) continue;
+                            
+                            var currentTile = mapData[currentLayer][ny][nx];
+                            var currentValue = null;
+                            
+                            if (currentTile) {
+                                currentValue = currentTile.sx + ',' + currentTile.sy;
+                            }
+                            
+                            // Only fill if the current tile matches the target
+                            if (currentValue !== targetValue) continue;
+                            
+                            // Place the new tile
+                            placeTile(nx, ny);
+                            
+                            // Add 4-connected neighbors to queue
+                            queue.push({x: nx+1, y: ny});
+                            queue.push({x: nx-1, y: ny});
+                            queue.push({x: nx, y: ny+1});
+                            queue.push({x: nx, y: ny-1});
+                        }
+                    }
+                    
+                    // Update selection area visuals
+                    function updateSelectionArea() {
+                        var ctx = canvases.cursor.getContext('2d');
+                        ctx.clearRect(0, 0, canvases.cursor.width, canvases.cursor.height);
+                        
+                        if (selectionStart && selectionEnd) {
+                            var startX = Math.min(selectionStart.x, selectionEnd.x);
+                            var startY = Math.min(selectionStart.y, selectionEnd.y);
+                            var width = Math.abs(selectionEnd.x - selectionStart.x) + 1;
+                            var height = Math.abs(selectionEnd.y - selectionStart.y) + 1;
+                            
+                            ctx.strokeStyle = 'rgba(0, 100, 255, 0.8)';
+                            ctx.lineWidth = 2;
+                            ctx.setLineDash([5, 5]);
+                            ctx.strokeRect(
+                                startX * tileSize, 
+                                startY * tileSize, 
+                                width * tileSize, 
+                                height * tileSize
+                            );
+                            ctx.setLineDash([]);
+                            
+                            // Add some transparency to selection
+                            ctx.fillStyle = 'rgba(0, 100, 255, 0.2)';
+                            ctx.fillRect(
+                                startX * tileSize, 
+                                startY * tileSize, 
+                                width * tileSize, 
+                                height * tileSize
+                            );
+                            
+                            // Add handles for corners
+                            var handleSize = 8;
+                            ctx.fillStyle = 'rgba(0, 100, 255, 0.8)';
+                            
+                            // Top-left
+                            ctx.fillRect(
+                                startX * tileSize - handleSize/2, 
+                                startY * tileSize - handleSize/2, 
+                                handleSize, handleSize
+                            );
+                            
+                            // Top-right
+                            ctx.fillRect(
+                                (startX + width) * tileSize - handleSize/2, 
+                                startY * tileSize - handleSize/2, 
+                                handleSize, handleSize
+                            );
+                            
+                            // Bottom-left
+                            ctx.fillRect(
+                                startX * tileSize - handleSize/2, 
+                                (startY + height) * tileSize - handleSize/2, 
+                                handleSize, handleSize
+                            );
+                            
+                            // Bottom-right
+                            ctx.fillRect(
+                                (startX + width) * tileSize - handleSize/2, 
+                                (startY + height) * tileSize - handleSize/2, 
+                                handleSize, handleSize
+                            );
+                            
+                            // Add "move" cursor class for the selection
+                            $canvasContainer.addClass('selection-active');
+                        } else {
+                            $canvasContainer.removeClass('selection-active');
+                        }
+                    }
+                    
+                    // Place a tile on the map
+                    function placeTile(x, y) {
+                        if (selectedTile && selectedTile.img instanceof HTMLImageElement) {
+                            // Create a deep copy of the tile to avoid reference issues
+                            mapData[currentLayer][y][x] = {
+                                img: selectedTile.img,
+                                sx: selectedTile.sx,
+                                sy: selectedTile.sy
+                            };
+                            drawLayer(currentLayer);
+                        } else {
+                            console.warn('Cannot place invalid tile');
+                        }
+                    }
+                    
+                    // Erase a tile from the map
+                    function eraseTile(x, y) {
+                        mapData[currentLayer][y][x] = null;
+                        drawLayer(currentLayer);
+                    }
+                    
+                    // Event handlers for zoom
+                    $zoomControls.find('.zoom-in').on('click', function() {
+                        zoom = Math.min(zoom + 0.25, 3);
+                        updateZoom();
+                    });
+                    
+                    $zoomControls.find('.zoom-out').on('click', function() {
+                        zoom = Math.max(zoom - 0.25, 0.25);
+                        updateZoom();
+                    });
+                    
+                    // Update zoom display and canvas scale
+                    function updateZoom() {
+                        $zoomControls.find('.zoom-level').text(Math.round(zoom * 100) + '%');
+                        $canvasContainer.css('transform', 'scale(' + zoom + ')');
+                    }
+                    
+                    // Initialize canvases
+                    container.on('shown', function() {
+                        initializeCanvases();
+                    });
+                    
+                    // Public methods for the map editor
+                    return {
+                        updateTileSize: function(size) {
+                            tileSize = size;
+                            initializeCanvases();
+                        },
+                        updateMapSize: function(width, height) {
+                            mapWidth = width;
+                            mapHeight = height;
+                            // Recreate map data for new dimensions
+                            Object.keys(mapData).forEach(function(layerName) {
+                                mapData[layerName] = createEmptyLayer();
+                            });
+                            initializeCanvases();
+                        }
+                    };
+                });
+                
+                layout.registerComponent('tilesetPanel', function(container, state) {
+                    var $tilesetPanel = $('<div class="tileset-panel"></div>');
+                    var $toolbar = $('<div class="tileset-toolbar"></div>');
+                    var $uploadBtn = $('<button class="tool-btn">Upload Tileset</button>');
+                    var $content = $('<div class="tileset-content"></div>');
+                    var $canvasContainer = $('<div class="tileset-canvas-container"></div>');
+                    var $canvas = $('<canvas class="tileset-canvas"></canvas>');
+                    
+                    $canvasContainer.append($canvas);
+                    $content.append($canvasContainer);
+                    $toolbar.append($uploadBtn);
+                    $tilesetPanel.append($toolbar, $content);
+                    container.getElement().append($tilesetPanel);
+                    
+                    // Tileset selection logic
+                    var selectionStart = null;
+                    var selectionEnd = null;
+                    var selectionElement = null;
+                    var activeTilesetImg = null;
+                    
+                    $uploadBtn.on('click', function() {
+                        $('#tilesetUpload').click();
+                    });
+                    
+                    // Handle tileset upload
+                    $('#tilesetUpload').on('change', function(e) {
+                        if (e.target.files.length > 0) {
+                            var file = e.target.files[0];
+                            console.log('Tileset file selected:', file.name);
+                            
+                            // Simple preview of the tileset
+                            var reader = new FileReader();
+                            reader.onload = function(e) {
+                                var img = new Image();
+                                
+                                // Make sure image loading is handled properly
+                                img.onload = function() {
+                                    console.log('Tileset image loaded successfully, dimensions:', img.width, 'x', img.height);
+                                    var canvas = $canvas[0];
+                                    canvas.width = img.width;
+                                    canvas.height = img.height;
+                                    var ctx = canvas.getContext('2d');
+                                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                                    ctx.drawImage(img, 0, 0);
+                                    
+                                    // Store the image as the active tileset
+                                    activeTilesetImg = img;
+                                    
+                                    // Create tileset entry
+                                    var tileset = {
+                                        name: file.name,
+                                        img: img,
+                                        width: img.width,
+                                        height: img.height
+                                    };
+                                    
+                                    tilesets.push(tileset);
+                                    
+                                    // Clear any existing selection
+                                    if (selectionElement) {
+                                        selectionElement.remove();
+                                        selectionElement = null;
+                                    }
+                                    selectedTile = null;
+                                };
+                                
+                                img.onerror = function() {
+                                    console.error('Failed to load tileset image');
+                                    alert('Failed to load tileset image. Please try another file.');
+                                };
+                                
+                                // Set crossOrigin to anonymous if you need to load from other domains
+                                // img.crossOrigin = 'anonymous';
+                                img.src = e.target.result;
+                            };
+                            reader.onerror = function() {
+                                console.error('Error reading file');
+                                alert('Error reading file. Please try again.');
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+                    
+                    // Handle selecting tiles from the tileset
+                    $canvasContainer.on('mousedown', function(e) {
+                        if (!activeTilesetImg) return;
+                        
+                        var rect = $canvas[0].getBoundingClientRect();
+                        var scaleX = $canvas[0].width / rect.width;
+                        var scaleY = $canvas[0].height / rect.height;
+                        
+                        var x = Math.floor((e.clientX - rect.left) * scaleX / tileSize) * tileSize;
+                        var y = Math.floor((e.clientY - rect.top) * scaleY / tileSize) * tileSize;
+                        
+                        // Start selection
+                        selectionStart = { x: x, y: y };
+                        selectionEnd = { x: x, y: y };
+                        
+                        // Create or update selection element
+                        if (!selectionElement) {
+                            selectionElement = $('<div class="tileset-selection"></div>');
+                            $canvasContainer.append(selectionElement);
+                        }
+                        
+                        // Update selection display
+                        updateSelectionDisplay();
+                        
+                        // Set the selected tile
+                        selectedTile = {
+                            img: activeTilesetImg,
+                            sx: x,
+                            sy: y
+                        };
+                        
+                        // Verify the selected tile has a valid image
+                        if (!(selectedTile.img instanceof HTMLImageElement)) {
+                            console.error('Invalid image selected for tile');
+                        }
+                        
+                        console.log('Selected tile:', selectedTile);
+                    });
+                    
+                    function updateSelectionDisplay() {
+                        if (selectionStart && selectionEnd && selectionElement) {
+                            var minX = Math.min(selectionStart.x, selectionEnd.x);
+                            var minY = Math.min(selectionStart.y, selectionEnd.y);
+                            var maxX = Math.max(selectionStart.x, selectionEnd.x);
+                            var maxY = Math.max(selectionStart.y, selectionEnd.y);
+                            
+                            var width = (maxX - minX) + tileSize;
+                            var height = (maxY - minY) + tileSize;
+                            
+                            selectionElement.css({
+                                left: minX + 'px',
+                                top: minY + 'px',
+                                width: width + 'px',
+                                height: height + 'px'
+                            });
+                        }
+                    }
+                });
+                
+                layout.registerComponent('layersPanel', function(container, state) {
+                    var $layersPanel = $('<div class="layers-panel"></div>');
+                    var $toolbar = $('<div class="layers-toolbar"></div>');
+                    var $addBtn = $('<button class="tool-btn">Add Layer</button>');
+                    var $deleteBtn = $('<button class="tool-btn">Delete Layer</button>');
+                    var $list = $('<div class="layers-list"></div>');
+                    
+                    // Add some default layers
+                    var layers = [
+                        { name: 'Ground', id: 'ground', visible: true },
+                        { name: 'Objects', id: 'objects', visible: true },
+                        { name: 'Overlay', id: 'overlay', visible: true }
+                    ];
+                    
+                    layers.forEach(function(layer) {
+                        var $layer = $('<div class="layer-item ' + (layer.id === 'ground' ? 'active' : '') + '" data-id="' + layer.id + '"></div>');
+                        var $visibility = $('<span class="layer-visibility"><i class="fas fa-' + (layer.visible ? 'eye' : 'eye-slash') + '"></i></span>');
+                        var $name = $('<span class="layer-name">' + layer.name + '</span>');
+                        
+                        $layer.append($visibility, $name);
+                        $list.append($layer);
+                        
+                        // Basic visibility toggle
+                        $visibility.on('click', function(e) {
+                            e.stopPropagation();
+                            var $icon = $(this).find('i');
+                            var visible = !$icon.hasClass('fa-eye-slash');
+                            
+                            if (visible) {
+                                $icon.removeClass('fa-eye').addClass('fa-eye-slash');
+                                $('canvas.' + layer.id + '-layer').hide();
+                                console.log('Layer', layer.name, 'hidden');
+                            } else {
+                                $icon.removeClass('fa-eye-slash').addClass('fa-eye');
+                                $('canvas.' + layer.id + '-layer').show();
+                                console.log('Layer', layer.name, 'shown');
+                            }
+                        });
+                        
+                        // Layer selection
+                        $layer.on('click', function() {
+                            $('.layer-item').removeClass('active');
+                            $(this).addClass('active');
+                            currentLayer = layer.id;
+                            console.log('Layer', layer.name, 'selected');
+                            $('#layerSelect').val(layer.id);
+                        });
+                    });
+                    
+                    $toolbar.append($addBtn, $deleteBtn);
+                    $layersPanel.append($toolbar, $list);
+                    container.getElement().append($layersPanel);
+                    
+                    // Basic layer management
+                    $addBtn.on('click', function() {
+                        var name = prompt('Enter layer name:');
+                        if (name) {
+                            console.log('Adding new layer:', name);
+                            var id = name.toLowerCase().replace(/\s+/g, '_');
+                            
+                            // Create the layer in mapData
+                            if (!mapData[id]) {
+                                mapData[id] = createEmptyLayer();
+                            }
+                            
+                            var $layer = $('<div class="layer-item" data-id="' + id + '"></div>');
+                            var $visibility = $('<span class="layer-visibility"><i class="fas fa-eye"></i></span>');
+                            var $name = $('<span class="layer-name">' + name + '</span>');
+                            
+                            $layer.append($visibility, $name);
+                            $list.prepend($layer);
+                        }
+                    });
+                    
+                    $deleteBtn.on('click', function() {
+                        var $active = $('.layer-item.active');
+                        if ($active.length && !['ground', 'objects', 'overlay'].includes($active.data('id'))) {
+                            if (confirm('Delete layer "' + $active.find('.layer-name').text() + '"?')) {
+                                var layerId = $active.data('id');
+                                console.log('Deleting layer:', $active.find('.layer-name').text());
+                                
+                                // Remove from mapData
+                                delete mapData[layerId];
+                                
+                                $active.remove();
+                                $('.layer-item:first-child').addClass('active');
+                                currentLayer = $('.layer-item:first-child').data('id');
+                            }
+                        } else {
+                            alert('Cannot delete the default layers (Ground, Objects, Overlay)');
+                        }
+                    });
+                });
+                
+                // Initialize the layout
+                layout.init();
+                
+                // Set up toolbar functionality
+                $('.tool-btn').on('click', function() {
+                    if ($(this).attr('id') && $(this).attr('id').endsWith('Tool')) {
+                        $('.tool-btn[id$="Tool"]').removeClass('active');
+                        $(this).addClass('active');
+                        activeTool = $(this).attr('id');
+                        console.log('Tool selected:', activeTool);
+                        
+                        // Clear selection when changing tools
+                        selectionStart = null;
+                        selectionEnd = null;
+                        
+                        // Clear cursor canvas
+                        var cursorsCanvas = $('canvas.cursor-layer')[0];
+                        if (cursorsCanvas) {
+                            var ctx = cursorsCanvas.getContext('2d');
+                            ctx.clearRect(0, 0, cursorsCanvas.width, cursorsCanvas.height);
+                        }
+                    }
+                });
+                
+                // Handle Apply Map Size button
+                $('#applyMapSize').on('click', function() {
+                    var newTileSize = parseInt($('#tileSize').val());
+                    var newMapWidth = parseInt($('#mapWidth').val());
+                    var newMapHeight = parseInt($('#mapHeight').val());
+                    
+                    if (newTileSize >= 8 && newTileSize <= 128 && 
+                        newMapWidth >= 1 && newMapWidth <= 1000 && 
+                        newMapHeight >= 1 && newMapHeight <= 1000) {
+                        
+                        tileSize = newTileSize;
+                        mapWidth = newMapWidth;
+                        mapHeight = newMapHeight;
+                        
+                        // Recreate map data for new dimensions
+                        Object.keys(mapData).forEach(function(layerName) {
+                            mapData[layerName] = createEmptyLayer();
+                        });
+                        
+                        // Update canvases
+                        layout.updateSize();
+                        
+                        console.log('Map size updated:', tileSize, mapWidth, mapHeight);
+                    } else {
+                        alert('Invalid map size parameters. Tile size must be 8-128px, and map dimensions between 1-1000.');
+                    }
+                });
+                
+                // Handle layer selection from dropdown
+                $('#layerSelect').on('change', function() {
+                    currentLayer = $(this).val();
+                    $('.layer-item').removeClass('active');
+                    $('.layer-item[data-id="' + currentLayer + '"]').addClass('active');
+                });
+                
+                // Handle window resize
+                $(window).resize(function() {
+                    layout.updateSize();
+                });
+                
+                console.log("Map Editor 3000 initialized successfully!");
+            } catch (error) {
+                console.error("Error initializing Map Editor:", error);
+                alert("Error initializing Map Editor. See console for details.");
+            }
+        });
+        
+        // Selection operations
+        function getSelectionBounds() {
+            if (!selectionStart || !selectionEnd) return null;
+            
+            return {
+                startX: Math.min(selectionStart.x, selectionEnd.x),
+                startY: Math.min(selectionStart.y, selectionEnd.y),
+                width: Math.abs(selectionEnd.x - selectionStart.x) + 1,
+                height: Math.abs(selectionEnd.y - selectionStart.y) + 1
+            };
+        }
+        
+        function copySelection() {
+            var bounds = getSelectionBounds();
+            if (!bounds) return;
+            
+            clipboard = {
+                layer: currentLayer,
+                width: bounds.width,
+                height: bounds.height,
+                data: []
+            };
+            
+            // Copy the tile data
+            for (var y = 0; y < bounds.height; y++) {
+                clipboard.data[y] = [];
+                for (var x = 0; x < bounds.width; x++) {
+                    var sourceTile = mapData[currentLayer][bounds.startY + y][bounds.startX + x];
+                    clipboard.data[y][x] = sourceTile ? Object.assign({}, sourceTile) : null;
+                }
+            }
+            
+            console.log('Copied selection:', clipboard);
+        }
+        
+        function cutSelection() {
+            copySelection();
+            clearSelection();
+        }
+        
+        function pasteSelection(offsetX = 0, offsetY = 0) {
+            if (!clipboard) {
+                console.warn('Nothing to paste');
+                return;
+            }
+            
+            // If we have a current selection, use its top-left as paste position
+            var pasteX = 0;
+            var pasteY = 0;
+            
+            if (selectionStart && selectionEnd) {
+                pasteX = Math.min(selectionStart.x, selectionEnd.x);
+                pasteY = Math.min(selectionStart.y, selectionEnd.y);
+            }
+            
+            // Apply offset (for multiple pastes)
+            pasteX += offsetX;
+            pasteY += offsetY;
+            
+            // Create a new selection for the pasted area
+            selectionStart = { x: pasteX, y: pasteY };
+            selectionEnd = { 
+                x: pasteX + clipboard.width - 1,
+                y: pasteY + clipboard.height - 1
+            };
+            
+            // Place the tiles
+            for (var y = 0; y < clipboard.height; y++) {
+                for (var x = 0; x < clipboard.width; x++) {
+                    var destX = pasteX + x;
+                    var destY = pasteY + y;
+                    
+                    // Skip if out of bounds
+                    if (destX < 0 || destY < 0 || destX >= mapWidth || destY >= mapHeight) {
+                        continue;
+                    }
+                    
+                    // Place the tile from clipboard
+                    if (clipboard.data[y][x]) {
+                        mapData[currentLayer][destY][destX] = Object.assign({}, clipboard.data[y][x]);
+                    } else {
+                        // Clear if the clipboard has null at this position
+                        mapData[currentLayer][destY][destX] = null;
+                    }
+                }
+            }
+            
+            // Redraw the layer and selection
+            drawLayer(currentLayer);
+            updateSelectionArea();
+        }
+        
+        function clearSelection() {
+            var bounds = getSelectionBounds();
+            if (!bounds) return;
+            
+            // Clear the tiles in the selection
+            for (var y = 0; y < bounds.height; y++) {
+                for (var x = 0; x < bounds.width; x++) {
+                    mapData[currentLayer][bounds.startY + y][bounds.startX + x] = null;
+                }
+            }
+            
+            // Redraw the layer
+            drawLayer(currentLayer);
+        }
+        
+        function flipSelectionHorizontal() {
+            var bounds = getSelectionBounds();
+            if (!bounds) return;
+            
+            // Create a temporary copy
+            var temp = [];
+            for (var y = 0; y < bounds.height; y++) {
+                temp[y] = [];
+                for (var x = 0; x < bounds.width; x++) {
+                    temp[y][x] = mapData[currentLayer][bounds.startY + y][bounds.startX + x];
+                }
+            }
+            
+            // Flip horizontally and write back
+            for (var y = 0; y < bounds.height; y++) {
+                for (var x = 0; x < bounds.width; x++) {
+                    mapData[currentLayer][bounds.startY + y][bounds.startX + x] = 
+                        temp[y][bounds.width - 1 - x];
+                }
+            }
+            
+            // Redraw the layer
+            drawLayer(currentLayer);
+        }
+        
+        function flipSelectionVertical() {
+            var bounds = getSelectionBounds();
+            if (!bounds) return;
+            
+            // Create a temporary copy
+            var temp = [];
+            for (var y = 0; y < bounds.height; y++) {
+                temp[y] = [];
+                for (var x = 0; x < bounds.width; x++) {
+                    temp[y][x] = mapData[currentLayer][bounds.startY + y][bounds.startX + x];
+                }
+            }
+            
+            // Flip vertically and write back
+            for (var y = 0; y < bounds.height; y++) {
+                for (var x = 0; x < bounds.width; x++) {
+                    mapData[currentLayer][bounds.startY + y][bounds.startX + x] = 
+                        temp[bounds.height - 1 - y][x];
+                }
+            }
+            
+            // Redraw the layer
+            drawLayer(currentLayer);
+        }
+        
+        function moveSelection(dx, dy) {
+            var bounds = getSelectionBounds();
+            if (!bounds) return;
+            
+            // Create a temporary copy
+            var temp = [];
+            for (var y = 0; y < bounds.height; y++) {
+                temp[y] = [];
+                for (var x = 0; x < bounds.width; x++) {
+                    temp[y][x] = mapData[currentLayer][bounds.startY + y][bounds.startX + x];
+                    // Clear the original position
+                    mapData[currentLayer][bounds.startY + y][bounds.startX + x] = null;
+                }
+            }
+            
+            // Move to new position
+            for (var y = 0; y < bounds.height; y++) {
+                for (var x = 0; x < bounds.width; x++) {
+                    var destX = bounds.startX + x + dx;
+                    var destY = bounds.startY + y + dy;
+                    
+                    // Skip if out of bounds
+                    if (destX < 0 || destY < 0 || destX >= mapWidth || destY >= mapHeight) {
+                        continue;
+                    }
+                    
+                    mapData[currentLayer][destY][destX] = temp[y][x];
+                }
+            }
+            
+            // Redraw the layer
+            drawLayer(currentLayer);
+        }
+        
+        // Handle selection menu actions
+        $(document).on('click', '#selection-menu li', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            var action = $(this).data('action');
+            console.log('Selection menu action:', action);
+            
+            switch(action) {
+                case 'flip-h':
+                    flipSelectionHorizontal();
+                    break;
+                case 'flip-v':
+                    flipSelectionVertical();
+                    break;
+                case 'copy':
+                    copySelection();
+                    break;
+                case 'cut':
+                    cutSelection();
+                    break;
+                case 'paste':
+                    pasteSelection();
+                    break;
+                case 'delete':
+                    clearSelection();
+                    break;
+            }
+            
+            // Hide the menu
+            $('#selection-menu').hide();
+        });
+        
+        // Show context menu for selection
+        $canvasContainer.on('contextmenu', function(e) {
+            // Prevent default right-click menu
+            e.preventDefault();
+            
+            if (activeTool === 'selectTool' && selectionStart && selectionEnd) {
+                var coords = getTileCoordinates(e);
+                var x = coords.x;
+                var y = coords.y;
+                
+                // Check if click is inside selection
+                var bounds = getSelectionBounds();
+                if (bounds && x >= bounds.startX && x < bounds.startX + bounds.width &&
+                    y >= bounds.startY && y < bounds.startY + bounds.height) {
+                    
+                    // Position and show the menu
+                    $('#selection-menu').css({
+                        left: e.pageX + 'px',
+                        top: e.pageY + 'px'
+                    }).show();
+                    
+                    console.log('Showing selection menu at', e.pageX, e.pageY);
+                    return false;
+                }
+            }
+            
+            // Default behavior - erase tile on right click if not in selection
+            var coords = getTileCoordinates(e);
+            eraseTile(coords.x, coords.y);
+        });
+        
+        // Click outside of context menu to close it
+        $(document).on('mousedown', function(e) {
+            if (!$(e.target).closest('#selection-menu').length) {
+                $('#selection-menu').hide();
+            }
+        });
+    </script>
+</body>
+</html>
