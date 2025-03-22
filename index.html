@@ -21,45 +21,233 @@
     <link rel="stylesheet" href="css/styles.css">
     
     <style>
-        .context-menu {
-            display: none;
-            position: absolute;
-            background: #333;
-            border: 1px solid #555;
-            border-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            min-width: 150px;
-        }
-        
-        .context-menu ul {
-            list-style: none;
+        body {
             margin: 0;
-            padding: 4px 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
         }
         
-        .context-menu li {
-            padding: 8px 12px;
-            cursor: pointer;
+        #layout-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        
+        .lm_content {
+            background-color: #2d2d2d;
+            border: 1px solid #444;
+        }
+        
+        .lm_header {
+            background-color: #333;
+        }
+        
+        .lm_tab {
+            background-color: #444;
+            color: #ccc;
+        }
+        
+        .lm_tab.lm_active {
+            background-color: #2d2d2d;
             color: #fff;
         }
         
-        .context-menu li:hover {
-            background: #444;
+        .toolbar {
+            padding: 10px;
+            background-color: #333;
+            border-bottom: 1px solid #444;
+        }
+        
+        .tool-btn {
+            margin-right: 5px;
+            padding: 5px 10px;
+            background-color: #555;
+            color: #e0e0e0;
+            border: 1px solid #777;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        
+        .tool-btn:hover {
+            background-color: #666;
+        }
+        
+        .tool-btn.active {
+            background-color: #007acc;
+            color: white;
+        }
+        
+        .canvas-container {
+            position: relative;
+            overflow: auto;
+            height: 100%;
+            background-color: #252525;
+        }
+        
+        canvas {
+            position: absolute;
+            image-rendering: pixelated;
+        }
+        
+        .tileset-panel, .map-panel, .layers-panel {
+            height: 100%;
+            overflow: auto;
+            background-color: #2d2d2d;
+            color: #e0e0e0;
+        }
+        
+        .tileset-content, .layer-list {
+            padding: 10px;
+        }
+        
+        .tileset-container {
+            margin-bottom: 15px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            overflow: hidden;
+            background-color: #333;
+        }
+        
+        .tileset-container h4 {
+            margin: 0;
+            padding: 8px;
+            background-color: #444;
+            color: #e0e0e0;
+        }
+        
+        .tileset-canvas {
+            background-color: #252525;
+            border: 1px solid #555;
+        }
+        
+        .tileset-canvas.has-selection {
+            border-color: #007acc;
+        }
+        
+        .layer-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            background-color: #333;
+            border: 1px solid #444;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        
+        .layer-item.active {
+            background-color: #007acc;
+            color: white;
+        }
+        
+        .selection-box {
+            position: absolute;
+            border: 2px dashed rgba(255, 255, 255, 0.8);
+            background-color: rgba(255, 255, 255, 0.2);
+            pointer-events: none;
+        }
+        
+        .selection-handle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: white;
+            border: 1px solid black;
+        }
+        
+        .selection-move-indicator {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            pointer-events: none;
         }
         
         .selection-active .cursor-layer {
             cursor: move;
+        }
+        
+        .context-menu {
+            position: absolute;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+            display: none;
+            z-index: 1000;
+        }
+        .context-menu ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .context-menu li {
+            padding: 8px 12px;
+            cursor: pointer;
+            color: #e0e0e0;
+        }
+        .context-menu li:hover {
+            background: #444;
+        }
+        
+        .grid-layer {
+            pointer-events: none;
+        }
+        
+        input[type="text"] {
+            background-color: #333;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            padding: 5px;
+        }
+        
+        button {
+            background-color: #555;
+            color: #e0e0e0;
+            border: 1px solid #777;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #666;
+        }
+        
+        .context-menu {
+            position: absolute;
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+            display: none;
+            z-index: 1000;
+        }
+        .context-menu ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .context-menu li {
+            padding: 8px 12px;
+            cursor: pointer;
+            color: #e0e0e0;
+        }
+        .context-menu li:hover {
+            background: #444;
         }
     </style>
 </head>
 <body>
     <div class="toolbar">
         <div class="tool-group">
-            <button id="selectTool" class="tool-btn" title="Selection Tool"><i class="fas fa-mouse-pointer"></i></button>
-            <button id="pencilTool" class="tool-btn active" title="Pencil Tool"><i class="fas fa-pencil-alt"></i></button>
-            <button id="fillTool" class="tool-btn" title="Fill Tool"><i class="fas fa-fill-drip"></i></button>
-            <button id="shapeTool" class="tool-btn" title="Shape Tool"><i class="fas fa-square"></i></button>
+            <button id="selectTool" class="tool-btn" title="Selection Tool" data-tool="selectTool"><i class="fas fa-mouse-pointer"></i></button>
+            <button id="pencilTool" class="tool-btn active" title="Pencil Tool" data-tool="pencilTool"><i class="fas fa-pencil-alt"></i></button>
+            <button id="fillTool" class="tool-btn" title="Fill Tool" data-tool="fillTool"><i class="fas fa-fill-drip"></i></button>
+            <button id="shapeTool" class="tool-btn" title="Shape Tool" data-tool="shapeTool"><i class="fas fa-square"></i></button>
         </div>
         <div class="tool-group">
             <button id="undoBtn" class="tool-btn" title="Undo"><i class="fas fa-undo"></i></button>
@@ -135,6 +323,104 @@
         var currentLayer = 'ground';
         var tileSize = 32;
         var canvases = {};
+        var activeTool = 'pencilTool';
+        var selectedTile = null;
+        
+        // Global functions for selection operations
+        function drawLayer(layerName) {
+            if (!mapData[layerName] || !canvases[layerName]) return;
+            
+            var ctx = canvases[layerName].getContext('2d');
+            ctx.clearRect(0, 0, canvases[layerName].width, canvases[layerName].height);
+            
+            for (var y = 0; y < mapData[layerName].length; y++) {
+                for (var x = 0; x < mapData[layerName][y].length; x++) {
+                    var tile = mapData[layerName][y][x];
+                    if (tile) {
+                        drawTile(ctx, tile, x, y);
+                    }
+                }
+            }
+        }
+        
+        function drawTile(ctx, tile, x, y) {
+            if (!tile || !tile.tilesetImage) return;
+            
+            var img = document.getElementById(tile.tilesetImage);
+            if (!img) {
+                console.warn('Tileset image not found:', tile.tilesetImage);
+                return;
+            }
+            
+            try {
+                ctx.drawImage(
+                    img,
+                    tile.x, tile.y, tile.width, tile.height,
+                    x * tileSize, y * tileSize, tileSize, tileSize
+                );
+            } catch (e) {
+                console.error('Error drawing tile:', e, tile);
+                // Draw error indicator
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            }
+        }
+        
+        function drawTilesetGrid(canvas, gridSize) {
+            if (!canvas) return;
+            
+            var ctx = canvas.getContext('2d');
+            var width = canvas.width;
+            var height = canvas.height;
+            
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            
+            // Draw vertical lines
+            for (var x = gridSize; x < width; x += gridSize) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+            }
+            
+            // Draw horizontal lines
+            for (var y = gridSize; y < height; y += gridSize) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+            }
+            
+            ctx.stroke();
+        }
+        
+        function eraseTile(x, y) {
+            if (x >= 0 && y >= 0 && mapData[currentLayer] && 
+                mapData[currentLayer][y] && mapData[currentLayer][y][x] !== undefined) {
+                mapData[currentLayer][y][x] = null;
+                drawLayer(currentLayer);
+            }
+        }
+        
+        function placeTile(x, y) {
+            if (!selectedTile || !selectedTile.tilesetImage) {
+                console.warn('No tile selected for placement');
+                return;
+            }
+            
+            if (x >= 0 && y >= 0 && mapData[currentLayer] && 
+                mapData[currentLayer][y] && mapData[currentLayer][y][x] !== undefined) {
+                // Create a deep copy of the tile to avoid reference issues
+                mapData[currentLayer][y][x] = {
+                    tilesetImage: selectedTile.tilesetImage,
+                    x: selectedTile.x,
+                    y: selectedTile.y,
+                    width: selectedTile.width,
+                    height: selectedTile.height
+                };
+                drawLayer(currentLayer);
+            } else {
+                console.warn('Cannot place tile at coordinates:', x, y);
+            }
+        }
         
         $(document).ready(function() {
             try {
@@ -147,8 +433,6 @@
                 currentLayer = 'ground';
                 var zoom = 1;
                 var tilesets = [];
-                var selectedTile = null;
-                var activeTool = 'pencilTool';
                 var isDrawing = false;
                 selectionStart = null;
                 selectionEnd = null;
@@ -264,7 +548,7 @@
                         ctx.clearRect(0, 0, canvases.grid.width, canvases.grid.height);
                         
                         ctx.beginPath();
-                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                        ctx.strokeStyle = 'rgba(80, 80, 80, 0.5)';
                         ctx.lineWidth = 1;
                         
                         // Draw vertical lines
@@ -287,51 +571,6 @@
                         Object.keys(mapData).forEach(function(layerName) {
                             drawLayer(layerName);
                         });
-                    }
-                    
-                    // Draw a specific layer
-                    function drawLayer(layerName) {
-                        if (!canvases[layerName]) return;
-                        
-                        var ctx = canvases[layerName].getContext('2d');
-                        ctx.clearRect(0, 0, canvases[layerName].width, canvases[layerName].height);
-                        
-                        // Draw tiles on this layer
-                        var layer = mapData[layerName];
-                        for (var y = 0; y < layer.length; y++) {
-                            for (var x = 0; x < layer[y].length; x++) {
-                                var tile = layer[y][x];
-                                if (tile) {
-                                    drawTile(ctx, tile, x, y);
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Draw a single tile at x,y position
-                    function drawTile(ctx, tile, x, y) {
-                        // Make sure we have a valid tile with an image
-                        if (!tile || !tile.img || !(tile.img instanceof HTMLImageElement)) {
-                            console.warn('Invalid tile data for drawing at', x, y);
-                            return;
-                        }
-
-                        var img = tile.img;
-                        var sx = tile.sx;
-                        var sy = tile.sy;
-                        
-                        try {
-                            ctx.drawImage(
-                                img,
-                                sx, sy, tileSize, tileSize,
-                                x * tileSize, y * tileSize, tileSize, tileSize
-                            );
-                        } catch (error) {
-                            console.error('Error drawing tile:', error);
-                            // Draw a placeholder for failed tile
-                            ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-                            ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-                        }
                     }
                     
                     // Update the cursor display
@@ -370,62 +609,93 @@
                         if (selectionStart && selectionEnd) {
                             var startX = Math.min(selectionStart.x, selectionEnd.x);
                             var startY = Math.min(selectionStart.y, selectionEnd.y);
-                            var width = Math.abs(selectionEnd.x - selectionStart.x) + 1;
-                            var height = Math.abs(selectionEnd.y - selectionStart.y) + 1;
+                            var endX = Math.max(selectionStart.x, selectionEnd.x);
+                            var endY = Math.max(selectionStart.y, selectionEnd.y);
                             
+                            // Draw selection rectangle
                             ctx.strokeStyle = 'rgba(0, 100, 255, 0.8)';
                             ctx.lineWidth = 2;
-                            ctx.setLineDash([5, 5]);
                             ctx.strokeRect(
                                 startX * tileSize, 
                                 startY * tileSize, 
-                                width * tileSize, 
-                                height * tileSize
-                            );
-                            ctx.setLineDash([]);
-                            
-                            // Add some transparency to selection
-                            ctx.fillStyle = 'rgba(0, 100, 255, 0.2)';
-                            ctx.fillRect(
-                                startX * tileSize, 
-                                startY * tileSize, 
-                                width * tileSize, 
-                                height * tileSize
+                                (endX - startX + 1) * tileSize, 
+                                (endY - startY + 1) * tileSize
                             );
                             
-                            // Add handles for corners
-                            var handleSize = 8;
+                            // Draw selection corners
+                            var handleSize = 6;
                             ctx.fillStyle = 'rgba(0, 100, 255, 0.8)';
                             
                             // Top-left
                             ctx.fillRect(
                                 startX * tileSize - handleSize/2, 
                                 startY * tileSize - handleSize/2, 
-                                handleSize, handleSize
+                                handleSize, 
+                                handleSize
                             );
                             
                             // Top-right
                             ctx.fillRect(
-                                (startX + width) * tileSize - handleSize/2, 
+                                (endX + 1) * tileSize - handleSize/2, 
                                 startY * tileSize - handleSize/2, 
-                                handleSize, handleSize
+                                handleSize, 
+                                handleSize
                             );
                             
                             // Bottom-left
                             ctx.fillRect(
                                 startX * tileSize - handleSize/2, 
-                                (startY + height) * tileSize - handleSize/2, 
-                                handleSize, handleSize
+                                (endY + 1) * tileSize - handleSize/2, 
+                                handleSize, 
+                                handleSize
                             );
                             
                             // Bottom-right
                             ctx.fillRect(
-                                (startX + width) * tileSize - handleSize/2, 
-                                (startY + height) * tileSize - handleSize/2, 
-                                handleSize, handleSize
+                                (endX + 1) * tileSize - handleSize/2, 
+                                (endY + 1) * tileSize - handleSize/2, 
+                                handleSize, 
+                                handleSize
                             );
                             
-                            // Add "move" cursor class for the selection
+                            // Add a "move" indicator in the center of the selection
+                            if (activeTool === 'selectTool') {
+                                var centerX = (startX + endX + 1) * tileSize / 2;
+                                var centerY = (startY + endY + 1) * tileSize / 2;
+                                
+                                // Draw move icon
+                                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                                ctx.beginPath();
+                                ctx.arc(centerX, centerY, 12, 0, Math.PI * 2);
+                                ctx.fill();
+                                
+                                ctx.fillStyle = 'rgba(0, 100, 255, 0.9)';
+                                ctx.beginPath();
+                                ctx.moveTo(centerX, centerY - 8);  // top arrow
+                                ctx.lineTo(centerX + 6, centerY - 2);
+                                ctx.lineTo(centerX - 6, centerY - 2);
+                                ctx.fill();
+                                
+                                ctx.beginPath();
+                                ctx.moveTo(centerX, centerY + 8);  // bottom arrow
+                                ctx.lineTo(centerX + 6, centerY + 2);
+                                ctx.lineTo(centerX - 6, centerY + 2);
+                                ctx.fill();
+                                
+                                ctx.beginPath();
+                                ctx.moveTo(centerX - 8, centerY);  // left arrow
+                                ctx.lineTo(centerX - 2, centerY + 6);
+                                ctx.lineTo(centerX - 2, centerY - 6);
+                                ctx.fill();
+                                
+                                ctx.beginPath();
+                                ctx.moveTo(centerX + 8, centerY);  // right arrow
+                                ctx.lineTo(centerX + 2, centerY + 6);
+                                ctx.lineTo(centerX + 2, centerY - 6);
+                                ctx.fill();
+                            }
+                            
+                            // Change cursor style when over a selection
                             $canvasContainer.addClass('selection-active');
                         } else {
                             $canvasContainer.removeClass('selection-active');
@@ -475,79 +745,37 @@
                             var y = coords.y;
                             
                             if (x >= 0 && y >= 0 && x < mapWidth && y < mapHeight) {
+                                lastDrawnX = x;
+                                lastDrawnY = y;
+                                
                                 if (activeTool === 'pencilTool' && selectedTile) {
-                                    // Simple placement with pencil
                                     placeTile(x, y);
-                                    lastDrawnX = x;
-                                    lastDrawnY = y;
                                 } else if (activeTool === 'fillTool' && selectedTile) {
-                                    // Fill connected area with the same tile
                                     floodFill(x, y);
                                 } else if (activeTool === 'selectTool') {
-                                    // Check if click is inside an existing selection
-                                    if (selectionStart && selectionEnd) {
-                                        var selStartX = Math.min(selectionStart.x, selectionEnd.x);
-                                        var selStartY = Math.min(selectionStart.y, selectionEnd.y);
-                                        var selWidth = Math.abs(selectionEnd.x - selectionStart.x) + 1;
-                                        var selHeight = Math.abs(selectionEnd.y - selectionStart.y) + 1;
+                                    // Check if click is inside existing selection
+                                    var bounds = getSelectionBounds();
+                                    if (bounds && x >= bounds.startX && x < bounds.startX + bounds.width &&
+                                        y >= bounds.startY && y < bounds.startY + bounds.height) {
+                                        // Start moving the selection
+                                        isMovingSelection = true;
+                                        moveStartX = x;
+                                        moveStartY = y;
+                                    } else {
+                                        // Start a new selection
+                                        selectionStart = { x: x, y: y };
+                                        selectionEnd = { x: x, y: y };
+                                        updateSelectionArea();
                                         
-                                        if (x >= selStartX && x < selStartX + selWidth &&
-                                            y >= selStartY && y < selStartY + selHeight) {
-                                            // Click is inside selection - start moving
-                                            isMovingSelection = true;
-                                            moveStartX = x;
-                                            moveStartY = y;
-                                            return;
-                                        }
+                                        // Hide context menu when starting a new selection
+                                        $('#selection-menu').hide();
                                     }
-                                    
-                                    // Start new selection
+                                } else if (activeTool === 'shapeTool') {
                                     selectionStart = { x: x, y: y };
                                     selectionEnd = { x: x, y: y };
-                                    updateSelectionArea();
-                                    
-                                    // Hide context menu if it's open
-                                    $('#selection-menu').hide();
-                                } else if (activeTool === 'shapeTool' && selectedTile) {
-                                    // Start shape drawing
-                                    selectionStart = { x: x, y: y };
-                                    selectionEnd = { x: x, y: y };
+                                    updateShapePreview();
                                 }
                             }
-                        } else if (e.button === 2) { // Right click
-                            var coords = getTileCoordinates(e);
-                            var x = coords.x;
-                            var y = coords.y;
-                            
-                            // If in selection tool and clicking within selection, show menu
-                            if (activeTool === 'selectTool' && selectionStart && selectionEnd) {
-                                var selStartX = Math.min(selectionStart.x, selectionEnd.x);
-                                var selStartY = Math.min(selectionStart.y, selectionEnd.y);
-                                var selWidth = Math.abs(selectionEnd.x - selectionStart.x) + 1;
-                                var selHeight = Math.abs(selectionEnd.y - selectionStart.y) + 1;
-                                
-                                if (x >= selStartX && x < selStartX + selWidth &&
-                                    y >= selStartY && y < selStartY + selHeight) {
-                                    
-                                    // Show context menu at mouse position
-                                    var menu = $('#selection-menu');
-                                    menu.css({
-                                        top: e.pageY + 'px',
-                                        left: e.pageX + 'px',
-                                        display: 'block'
-                                    });
-                                    
-                                    e.preventDefault();
-                                    return;
-                                }
-                            }
-                            
-                            // Default right-click behavior (erase)
-                            eraseTile(coords.x, coords.y);
-                            isDrawing = true;
-                            lastDrawnX = coords.x;
-                            lastDrawnY = coords.y;
-                            e.preventDefault();
                         }
                     });
                     
@@ -570,7 +798,8 @@
                                     lastDrawnX = x;
                                     lastDrawnY = y;
                                 }
-                            } else if (activeTool === 'selectTool' && isMovingSelection && selectionStart && selectionEnd) {
+                            } else if (activeTool === 'selectTool' && isMovingSelection && 
+                                selectionStart && selectionEnd) {
                                 // Move selection - calculate offset from original mouse position
                                 var dx = x - moveStartX;
                                 var dy = y - moveStartY;
@@ -706,7 +935,37 @@
                     
                     // Prevent context menu on right-click
                     $canvasContainer.on('contextmenu', function(e) {
+                        var coords = getTileCoordinates(e);
+                        var x = coords.x;
+                        var y = coords.y;
+                        
+                        // If in selection tool and clicking within selection, show menu
+                        if (activeTool === 'selectTool' && selectionStart && selectionEnd) {
+                            var selStartX = Math.min(selectionStart.x, selectionEnd.x);
+                            var selStartY = Math.min(selectionStart.y, selectionEnd.y);
+                            var selWidth = Math.abs(selectionEnd.x - selectionStart.x) + 1;
+                            var selHeight = Math.abs(selectionEnd.y - selectionStart.y) + 1;
+                            
+                            if (x >= selStartX && x < selStartX + selWidth &&
+                                y >= selStartY && y < selStartY + selHeight) {
+                                
+                                // Show context menu at mouse position
+                                var menu = $('#selection-menu');
+                                menu.css({
+                                    top: e.pageY + 'px',
+                                    left: e.pageX + 'px',
+                                    display: 'block'
+                                });
+                                
+                                e.preventDefault();
+                                return false;
+                            }
+                        }
+                        
+                        // Default right-click behavior (erase) if not showing context menu
+                        eraseTile(x, y);
                         e.preventDefault();
+                        return false;
                     });
                     
                     // Draw a line between two points using Bresenham's algorithm
@@ -811,8 +1070,8 @@
                         if (selectionStart && selectionEnd) {
                             var startX = Math.min(selectionStart.x, selectionEnd.x);
                             var startY = Math.min(selectionStart.y, selectionEnd.y);
-                            var width = Math.abs(selectionEnd.x - selectionStart.x) + 1;
-                            var height = Math.abs(selectionEnd.y - selectionStart.y) + 1;
+                            var endX = Math.max(selectionStart.x, selectionEnd.x);
+                            var endY = Math.max(selectionStart.y, selectionEnd.y);
                             
                             ctx.strokeStyle = 'rgba(0, 100, 255, 0.8)';
                             ctx.lineWidth = 2;
@@ -820,8 +1079,8 @@
                             ctx.strokeRect(
                                 startX * tileSize, 
                                 startY * tileSize, 
-                                width * tileSize, 
-                                height * tileSize
+                                (endX - startX + 1) * tileSize, 
+                                (endY - startY + 1) * tileSize
                             );
                             ctx.setLineDash([]);
                             
@@ -830,8 +1089,8 @@
                             ctx.fillRect(
                                 startX * tileSize, 
                                 startY * tileSize, 
-                                width * tileSize, 
-                                height * tileSize
+                                (endX - startX + 1) * tileSize, 
+                                (endY - startY + 1) * tileSize
                             );
                             
                             // Add handles for corners
@@ -847,7 +1106,7 @@
                             
                             // Top-right
                             ctx.fillRect(
-                                (startX + width) * tileSize - handleSize/2, 
+                                (endX + 1) * tileSize - handleSize/2, 
                                 startY * tileSize - handleSize/2, 
                                 handleSize, handleSize
                             );
@@ -855,14 +1114,14 @@
                             // Bottom-left
                             ctx.fillRect(
                                 startX * tileSize - handleSize/2, 
-                                (startY + height) * tileSize - handleSize/2, 
+                                (endY + 1) * tileSize - handleSize/2, 
                                 handleSize, handleSize
                             );
                             
                             // Bottom-right
                             ctx.fillRect(
-                                (startX + width) * tileSize - handleSize/2, 
-                                (startY + height) * tileSize - handleSize/2, 
+                                (endX + 1) * tileSize - handleSize/2, 
+                                (endY + 1) * tileSize - handleSize/2, 
                                 handleSize, handleSize
                             );
                             
@@ -875,23 +1134,19 @@
                     
                     // Place a tile on the map
                     function placeTile(x, y) {
-                        if (selectedTile && selectedTile.img instanceof HTMLImageElement) {
+                        if (selectedTile && selectedTile.tilesetImage) {
                             // Create a deep copy of the tile to avoid reference issues
                             mapData[currentLayer][y][x] = {
-                                img: selectedTile.img,
-                                sx: selectedTile.sx,
-                                sy: selectedTile.sy
+                                tilesetImage: selectedTile.tilesetImage,
+                                x: selectedTile.x,
+                                y: selectedTile.y,
+                                width: selectedTile.width,
+                                height: selectedTile.height
                             };
                             drawLayer(currentLayer);
                         } else {
                             console.warn('Cannot place invalid tile');
                         }
-                    }
-                    
-                    // Erase a tile from the map
-                    function eraseTile(x, y) {
-                        mapData[currentLayer][y][x] = null;
-                        drawLayer(currentLayer);
                     }
                     
                     // Event handlers for zoom
@@ -936,144 +1191,118 @@
                 
                 layout.registerComponent('tilesetPanel', function(container, state) {
                     var $tilesetPanel = $('<div class="tileset-panel"></div>');
-                    var $toolbar = $('<div class="tileset-toolbar"></div>');
                     var $uploadBtn = $('<button class="tool-btn">Upload Tileset</button>');
-                    var $content = $('<div class="tileset-content"></div>');
-                    var $canvasContainer = $('<div class="tileset-canvas-container"></div>');
-                    var $canvas = $('<canvas class="tileset-canvas"></canvas>');
+                    var $fileInput = $('<input type="file" accept="image/*" style="display: none;">');
+                    var $tilesetContent = $('<div class="tileset-content"></div>');
                     
-                    $canvasContainer.append($canvas);
-                    $content.append($canvasContainer);
-                    $toolbar.append($uploadBtn);
-                    $tilesetPanel.append($toolbar, $content);
+                    $tilesetPanel.append($uploadBtn).append($fileInput).append($tilesetContent);
                     container.getElement().append($tilesetPanel);
                     
-                    // Tileset selection logic
-                    var selectionStart = null;
-                    var selectionEnd = null;
-                    var selectionElement = null;
-                    var activeTilesetImg = null;
-                    
+                    // Handle tileset upload button click
                     $uploadBtn.on('click', function() {
-                        $('#tilesetUpload').click();
+                        $fileInput.click();
                     });
                     
-                    // Handle tileset upload
-                    $('#tilesetUpload').on('change', function(e) {
-                        if (e.target.files.length > 0) {
-                            var file = e.target.files[0];
-                            console.log('Tileset file selected:', file.name);
+                    // Handle tileset image upload
+                    $fileInput.on('change', function(e) {
+                        var file = e.target.files[0];
+                        if (!file) return;
+                        
+                        var reader = new FileReader();
+                        reader.onload = function(e) {
+                            var img = new Image();
+                            var tilesetId = 'tileset-' + (tilesets.length + 1);
                             
-                            // Simple preview of the tileset
-                            var reader = new FileReader();
-                            reader.onload = function(e) {
-                                var img = new Image();
+                            img.onload = function() {
+                                // Add image to DOM with unique ID
+                                img.id = tilesetId;
+                                img.style.display = 'none';
+                                document.body.appendChild(img);
                                 
-                                // Make sure image loading is handled properly
-                                img.onload = function() {
-                                    console.log('Tileset image loaded successfully, dimensions:', img.width, 'x', img.height);
-                                    var canvas = $canvas[0];
-                                    canvas.width = img.width;
-                                    canvas.height = img.height;
-                                    var ctx = canvas.getContext('2d');
-                                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                                    ctx.drawImage(img, 0, 0);
-                                    
-                                    // Store the image as the active tileset
-                                    activeTilesetImg = img;
-                                    
-                                    // Create tileset entry
-                                    var tileset = {
-                                        name: file.name,
-                                        img: img,
-                                        width: img.width,
-                                        height: img.height
-                                    };
-                                    
-                                    tilesets.push(tileset);
-                                    
-                                    // Clear any existing selection
-                                    if (selectionElement) {
-                                        selectionElement.remove();
-                                        selectionElement = null;
-                                    }
-                                    selectedTile = null;
-                                };
+                                // Store tileset reference
+                                tilesets.push({
+                                    id: tilesetId,
+                                    name: file.name,
+                                    image: img,
+                                    width: img.width,
+                                    height: img.height
+                                });
                                 
-                                img.onerror = function() {
-                                    console.error('Failed to load tileset image');
-                                    alert('Failed to load tileset image. Please try another file.');
-                                };
+                                // Display the tileset in the panel
+                                var $tileset = $('<div class="tileset-container"></div>');
+                                $tileset.data('id', tilesetId);
+                                $tileset.append('<h4>' + file.name + '</h4>');
                                 
-                                // Set crossOrigin to anonymous if you need to load from other domains
-                                // img.crossOrigin = 'anonymous';
-                                img.src = e.target.result;
+                                var $canvas = $('<canvas class="tileset-canvas"></canvas>');
+                                $canvas.attr('width', img.width).attr('height', img.height);
+                                var ctx = $canvas[0].getContext('2d');
+                                ctx.drawImage(img, 0, 0);
+                                
+                                $tileset.append($canvas);
+                                $tilesetContent.append($tileset);
+                                
+                                // Draw grid over the tileset
+                                drawTilesetGrid($canvas[0], tileSize);
+                                
+                                console.log('Loaded tileset:', tilesetId, file.name);
                             };
-                            reader.onerror = function() {
-                                console.error('Error reading file');
-                                alert('Error reading file. Please try again.');
+                            
+                            img.onerror = function() {
+                                console.error('Error loading tileset image');
+                                alert('Failed to load image. Please try another file.');
                             };
-                            reader.readAsDataURL(file);
-                        }
+                            
+                            img.src = e.target.result;
+                        };
+                        
+                        reader.readAsDataURL(file);
                     });
                     
                     // Handle selecting tiles from the tileset
-                    $canvasContainer.on('mousedown', function(e) {
-                        if (!activeTilesetImg) return;
+                    $tilesetContent.on('click', '.tileset-canvas', function(e) {
+                        var $canvas = $(this);
+                        var tilesetId = $canvas.parent().data('id');
                         
-                        var rect = $canvas[0].getBoundingClientRect();
-                        var scaleX = $canvas[0].width / rect.width;
-                        var scaleY = $canvas[0].height / rect.height;
-                        
-                        var x = Math.floor((e.clientX - rect.left) * scaleX / tileSize) * tileSize;
-                        var y = Math.floor((e.clientY - rect.top) * scaleY / tileSize) * tileSize;
-                        
-                        // Start selection
-                        selectionStart = { x: x, y: y };
-                        selectionEnd = { x: x, y: y };
-                        
-                        // Create or update selection element
-                        if (!selectionElement) {
-                            selectionElement = $('<div class="tileset-selection"></div>');
-                            $canvasContainer.append(selectionElement);
-                        }
-                        
-                        // Update selection display
-                        updateSelectionDisplay();
+                        var rect = this.getBoundingClientRect();
+                        var x = Math.floor((e.clientX - rect.left) / tileSize) * tileSize;
+                        var y = Math.floor((e.clientY - rect.top) / tileSize) * tileSize;
                         
                         // Set the selected tile
                         selectedTile = {
-                            img: activeTilesetImg,
-                            sx: x,
-                            sy: y
+                            tilesetImage: tilesetId,
+                            x: x,
+                            y: y,
+                            width: tileSize,
+                            height: tileSize
                         };
                         
-                        // Verify the selected tile has a valid image
-                        if (!(selectedTile.img instanceof HTMLImageElement)) {
-                            console.error('Invalid image selected for tile');
-                        }
-                        
                         console.log('Selected tile:', selectedTile);
+                        
+                        // Update selection visuals
+                        $('.tileset-canvas').removeClass('has-selection');
+                        $canvas.addClass('has-selection');
+                        
+                        // Highlight the selected tile
+                        $('.tileset-canvas').each(function() {
+                            var ctx = this.getContext('2d');
+                            ctx.clearRect(0, 0, this.width, this.height);
+                            
+                            // Redraw the tileset image
+                            var tilesetImg = document.getElementById($(this).parent().data('id'));
+                            if (tilesetImg) {
+                                ctx.drawImage(tilesetImg, 0, 0);
+                            }
+                            
+                            // Redraw the grid
+                            drawTilesetGrid(this, tileSize);
+                        });
+                        
+                        // Draw selection box on the active tileset
+                        var ctx = $canvas[0].getContext('2d');
+                        ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(x, y, tileSize, tileSize);
                     });
-                    
-                    function updateSelectionDisplay() {
-                        if (selectionStart && selectionEnd && selectionElement) {
-                            var minX = Math.min(selectionStart.x, selectionEnd.x);
-                            var minY = Math.min(selectionStart.y, selectionEnd.y);
-                            var maxX = Math.max(selectionStart.x, selectionEnd.x);
-                            var maxY = Math.max(selectionStart.y, selectionEnd.y);
-                            
-                            var width = (maxX - minX) + tileSize;
-                            var height = (maxY - minY) + tileSize;
-                            
-                            selectionElement.css({
-                                left: minX + 'px',
-                                top: minY + 'px',
-                                width: width + 'px',
-                                height: height + 'px'
-                            });
-                        }
-                    }
                 });
                 
                 layout.registerComponent('layersPanel', function(container, state) {
@@ -1178,18 +1407,16 @@
                     if ($(this).attr('id') && $(this).attr('id').endsWith('Tool')) {
                         $('.tool-btn[id$="Tool"]').removeClass('active');
                         $(this).addClass('active');
-                        activeTool = $(this).attr('id');
-                        console.log('Tool selected:', activeTool);
+                        activeTool = $(this).data('tool');
+                        console.log('Selected tool:', activeTool);
                         
-                        // Clear selection when changing tools
-                        selectionStart = null;
-                        selectionEnd = null;
-                        
-                        // Clear cursor canvas
-                        var cursorsCanvas = $('canvas.cursor-layer')[0];
-                        if (cursorsCanvas) {
-                            var ctx = cursorsCanvas.getContext('2d');
-                            ctx.clearRect(0, 0, cursorsCanvas.width, cursorsCanvas.height);
+                        // Clear any existing selection if switching away from select tool
+                        if (activeTool !== 'selectTool' && selectionStart) {
+                            selectionStart = null;
+                            selectionEnd = null;
+                            var ctxCursor = canvases.cursor.getContext('2d');
+                            ctxCursor.clearRect(0, 0, canvases.cursor.width, canvases.cursor.height);
+                            $canvasContainer.removeClass('selection-active');
                         }
                     }
                 });
@@ -1432,6 +1659,151 @@
             drawLayer(currentLayer);
         }
         
+        // Function to handle selection actions
+        function handleSelectionAction(action) {
+            if (!selectionStart || !selectionEnd) return;
+            
+            // Calculate selection bounds
+            var startX = Math.min(selectionStart.x, selectionEnd.x);
+            var startY = Math.min(selectionStart.y, selectionEnd.y);
+            var width = Math.abs(selectionEnd.x - selectionStart.x) + 1;
+            var height = Math.abs(selectionEnd.y - selectionStart.y) + 1;
+            
+            // Create copy of the selection area
+            var selectionCopy = [];
+            
+            // Create deep copy of selection data
+            function copySelectionData() {
+                selectionCopy = [];
+                for (var y = 0; y < height; y++) {
+                    selectionCopy[y] = [];
+                    for (var x = 0; x < width; x++) {
+                        var mapX = startX + x;
+                        var mapY = startY + y;
+                        
+                        if (mapData[currentLayer][mapY] && mapData[currentLayer][mapY][mapX]) {
+                            var tile = mapData[currentLayer][mapY][mapX];
+                            if (tile) {
+                                selectionCopy[y][x] = {
+                                    tilesetImage: tile.tilesetImage,
+                                    x: tile.x,
+                                    y: tile.y,
+                                    width: tile.width,
+                                    height: tile.height
+                                };
+                            } else {
+                                selectionCopy[y][x] = null;
+                            }
+                        } else {
+                            selectionCopy[y][x] = null;
+                        }
+                    }
+                }
+                console.log('Selection copied:', selectionCopy);
+                return selectionCopy;
+            }
+            
+            // Clear selection area
+            function clearSelectionArea() {
+                for (var y = 0; y < height; y++) {
+                    for (var x = 0; x < width; x++) {
+                        var mapX = startX + x;
+                        var mapY = startY + y;
+                        
+                        if (mapData[currentLayer][mapY] && mapData[currentLayer][mapY][mapX] !== undefined) {
+                            mapData[currentLayer][mapY][mapX] = null;
+                        }
+                    }
+                }
+                drawLayer(currentLayer);
+            }
+            
+            // Horizontal flip
+            function flipHorizontal(data) {
+                var flipped = [];
+                for (var y = 0; y < data.length; y++) {
+                    flipped[y] = [];
+                    for (var x = 0; x < data[y].length; x++) {
+                        flipped[y][x] = data[y][data[y].length - 1 - x];
+                    }
+                }
+                return flipped;
+            }
+            
+            // Vertical flip
+            function flipVertical(data) {
+                var flipped = [];
+                for (var y = 0; y < data.length; y++) {
+                    flipped[y] = [];
+                    for (var x = 0; x < data[y].length; x++) {
+                        flipped[y][x] = data[data.length - 1 - y][x];
+                    }
+                }
+                return flipped;
+            }
+            
+            // Paste data to current position
+            function pasteData(data) {
+                if (!data || !data.length) return;
+                
+                for (var y = 0; y < data.length; y++) {
+                    for (var x = 0; x < data[y].length; x++) {
+                        var mapX = startX + x;
+                        var mapY = startY + y;
+                        
+                        if (mapData[currentLayer][mapY] && mapData[currentLayer][mapY][mapX] !== undefined) {
+                            mapData[currentLayer][mapY][mapX] = data[y][x];
+                        }
+                    }
+                }
+                
+                drawLayer(currentLayer);
+            }
+            
+            // Handle different actions
+            switch (action) {
+                case 'flip-h':
+                    var data = copySelectionData();
+                    clearSelectionArea();
+                    pasteData(flipHorizontal(data));
+                    break;
+                    
+                case 'flip-v':
+                    var data = copySelectionData();
+                    clearSelectionArea();
+                    pasteData(flipVertical(data));
+                    break;
+                    
+                case 'copy':
+                    copySelectionData();
+                    console.log('Selection copied to clipboard');
+                    break;
+                    
+                case 'cut':
+                    copySelectionData();
+                    clearSelectionArea();
+                    console.log('Selection cut to clipboard');
+                    break;
+                    
+                case 'paste':
+                    if (selectionCopy && selectionCopy.length) {
+                        pasteData(selectionCopy);
+                        console.log('Pasted from clipboard');
+                    } else {
+                        console.warn('Nothing in clipboard to paste');
+                    }
+                    break;
+                    
+                case 'delete':
+                    clearSelectionArea();
+                    console.log('Selection deleted');
+                    break;
+                    
+                default:
+                    console.warn('Unknown selection action:', action);
+            }
+        }
+        
         // Handle selection menu actions
         $(document).on('click', '#selection-menu li', function(e) {
             e.preventDefault();
@@ -1502,6 +1874,65 @@
                 $('#selection-menu').hide();
             }
         });
+        
+        // Initialize selection context menu
+        if ($('#selection-menu').length === 0) {
+            var menuHTML = `
+            <div id="selection-menu" class="context-menu">
+                <ul>
+                    <li data-action="flip-h">Flip Horizontal</li>
+                    <li data-action="flip-v">Flip Vertical</li>
+                    <li data-action="copy">Copy</li>
+                    <li data-action="cut">Cut</li>
+                    <li data-action="paste">Paste</li>
+                    <li data-action="delete">Delete</li>
+                </ul>
+            </div>`;
+            $('body').append(menuHTML);
+            
+            // Add click handlers for menu items
+            $('#selection-menu li').on('click', function() {
+                var action = $(this).data('action');
+                handleSelectionAction(action);
+                $('#selection-menu').hide();
+            });
+            
+            // Hide menu when clicking elsewhere
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('#selection-menu').length) {
+                    $('#selection-menu').hide();
+                }
+            });
+        }
+        
+        // Add CSS for the context menu if not already present
+        if (!$('#context-menu-styles').length) {
+            var menuCSS = `
+            <style id="context-menu-styles">
+                .context-menu {
+                    position: absolute;
+                    background: #f0f0f0;
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                    box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+                    display: none;
+                    z-index: 1000;
+                }
+                .context-menu ul {
+                    list-style: none;
+                    margin: 0;
+                    padding: 0;
+                }
+                .context-menu li {
+                    padding: 8px 12px;
+                    cursor: pointer;
+                }
+                .context-menu li:hover {
+                    background: #e0e0e0;
+                }
+            </style>`;
+            $('head').append(menuCSS);
+        }
     </script>
 </body>
 </html>
